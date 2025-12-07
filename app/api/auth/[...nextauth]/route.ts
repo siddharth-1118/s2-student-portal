@@ -2,10 +2,11 @@ import NextAuth from "next-auth"
 import CredentialsProvider from "next-auth/providers/credentials"
 import { prisma } from "@/lib/prisma"
 
-const handler = NextAuth({
+// FIX: We export this object so other API routes can check if a user is logged in
+export const authOptions = {
   secret: process.env.NEXTAUTH_SECRET,
-  session: { strategy: "jwt" },
-
+  session: { strategy: "jwt" as const }, // 'as const' fixes a common TypeScript warning
+  
   providers: [
     CredentialsProvider({
       name: "Credentials",
@@ -21,7 +22,6 @@ const handler = NextAuth({
         });
 
         if (student) {
-          // FIX: Convert ID to string and cast to 'any' to stop TypeScript errors
           return { 
             id: String(student.id), 
             name: student.name, 
@@ -33,6 +33,8 @@ const handler = NextAuth({
       }
     })
   ],
-})
+}
+
+const handler = NextAuth(authOptions)
 
 export { handler as GET, handler as POST }
