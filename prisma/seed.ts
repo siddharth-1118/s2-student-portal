@@ -2,12 +2,11 @@ import { PrismaClient } from '@prisma/client'
 
 // FIX: Force the database URL into the environment. 
 // This bypasses the constructor errors you were seeing.
-process.env.DATABASE_URL = 'file:./dev.db'
+process.env.DATABASE_URL = 'prisma+postgres://accelerate.prisma-data.net/?api_key=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqd3RfaWQiOjEsInNlY3VyZV9rZXkiOiJza180eDNRN21iSkRXSXdVRFVwTWp0ZTciLCJhcGlfa2V5IjoiMDFLQldIWkdYQlNIMTRZR1lBNFFXRDdNTkYiLCJ0ZW5hbnRfaWQiOiI1YzM0OTRmYjFhYzdkNGJiZDEwYzM3MDMzMDcxMTBhYmEyODg4ODI1ZTBkYjdkOTY4MjcxYjkxNWRlODA5NzVhIiwiaW50ZXJuYWxfc2VjcmV0IjoiY2RhMjE5ZDAtNTYyNi00OTZmLTgxYWYtMTdjM2FjYWI3ZTIxIn0.a5Ylt4RciJAIJKEaTnlebwXeIl1NUKiAYLqFLfWK30o'
 
 const prisma = new PrismaClient()
 
 const studentsData = [
-  { registerNo: 'RA2511026010868', name: 'GURRAM VINAY JASWANTH' },
   { registerNo: 'RA2511026010869', name: 'VARNIKA JAIN' },
   { registerNo: 'RA2511026010870', name: 'KONDA VEERAVENKATAGANESH' },
   { registerNo: 'RA2511026010871', name: 'Y HARSHITHA' },
