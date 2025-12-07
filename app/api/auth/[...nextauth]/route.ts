@@ -17,7 +17,7 @@ const handler = NextAuth({
         username: { label: "Register Number", type: "text" },
         password: { label: "Password", type: "password" }
       },
-      async authorize(credentials) {
+      async authorize(credentials, req) {
         // 1. Check if user typed something
         if (!credentials?.username) return null;
 
@@ -29,7 +29,7 @@ const handler = NextAuth({
         // 3. If student found, log them in
         if (student) {
           return { 
-            id: student.id, 
+            id: String(student.id), 
             name: student.name, 
             email: student.registerNo // Using RegisterNo as email for uniqueness
           };
