@@ -110,13 +110,26 @@ export async function POST(req: Request) {
       const nameRaw = nameKey ? row[nameKey] : null;
       const name = nameRaw ? String(nameRaw).trim() : "Unknown";
 
+      // Check if this is the current user's register number and link email if so
+      let studentData: { registerNo: string; name: string; email?: string } = {
+        registerNo: reg,
+        name,
+      };
+
+      // If this is the current user's register number, link their email
+      const currentUserEmail = session.user.email;
+      const currentUserStudent = await prisma.student.findFirst({
+        where: { email: currentUserEmail },
+      });
+
+      if (currentUserStudent && currentUserStudent.registerNo === reg) {
+        studentData.email = currentUserEmail;
+      }
+
       const student = await prisma.student.upsert({
         where: { registerNo: reg },
         update: { name },
-        create: {
-          registerNo: reg,
-          name,
-        },
+        create: studentData,
       });
 
       for (const subjectKey of subjectKeys) {
