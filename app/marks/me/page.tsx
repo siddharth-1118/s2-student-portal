@@ -1,4 +1,5 @@
 // app/marks/me/page.tsx
+
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { prisma } from "@/lib/prisma";
@@ -7,7 +8,7 @@ import { NotificationSetup } from "../NotificationSetup";
 export default async function MyMarksPage() {
   const session = await getServerSession(authOptions);
 
-  if (!session || !session.user?.email) {
+  if (!session || !session.user) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
         <p className="text-slate-600">
@@ -17,9 +18,21 @@ export default async function MyMarksPage() {
     );
   }
 
-  // Find the student linked to this email
-  const student = await prisma.student.findFirst({
-    where: { email: session.user.email },
+  const registerNo = (session.user as any).registerNo as string | undefined;
+
+  if (!registerNo) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <p className="text-slate-600">
+          No register number found in your session. Please contact your admin.
+        </p>
+      </div>
+    );
+  }
+
+  // ✅ NOW we find the student by registerNo, not email
+  const student = await prisma.student.findUnique({
+    where: { registerNo },
     include: { marks: true },
   });
 
@@ -27,7 +40,7 @@ export default async function MyMarksPage() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
         <p className="text-slate-600">
-          No student record found for this email. Please contact your admin.
+          No student record found for register number {registerNo}. Please contact your admin.
         </p>
       </div>
     );
@@ -76,9 +89,7 @@ export default async function MyMarksPage() {
                 <tbody>
                   {marks.map((m) => {
                     const percent =
-                      m.maxMarks > 0
-                        ? (m.scored / m.maxMarks) * 100
-                        : 0;
+                      m.maxMarks > 0 ? (m.scored / m.maxMarks) * 100 : 0;
 
                     return (
                       <tr key={m.id} className="border-t">
@@ -103,7 +114,7 @@ export default async function MyMarksPage() {
             </div>
           )}
 
-          {/* Notifications setup box */}
+          {/* Notifications setup */}
           <NotificationSetup />
         </section>
       </div>
