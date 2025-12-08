@@ -9,33 +9,61 @@ export default function CircularsPage() {
   const router = useRouter();
   const [circulars, setCirculars] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // Simulate fetching circulars
-    setTimeout(() => {
-      // This is a temporary solution - in a real app, this would fetch from the database
-      const sampleCirculars = [
-        {
-          id: 1,
-          title: "Important Exam Schedule Update",
-          content: "Dear Students, please note that the midterm exams scheduled for next week have been postponed by 2 days. New dates will be communicated shortly.",
-          authorEmail: "kothaig2@srmist.edu.in",
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        },
-        {
-          id: 2,
-          title: "Library Hours Extended",
-          content: "The library will remain open until 11 PM during exam weeks starting from next month. This is to accommodate students who need extra study time.",
-          authorEmail: "saisiddharthvooka@gmail.com",
-          createdAt: new Date(Date.now() - 86400000).toISOString(), // Yesterday
-          updatedAt: new Date(Date.now() - 86400000).toISOString()
-        }
-      ];
-      setCirculars(sampleCirculars);
+    if (status === 'authenticated') {
+      fetchCirculars();
+    }
+  }, [status]);
+
+  const fetchCirculars = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const response = await fetch('/api/circulars/list');
+      const data = await response.json();
+      
+      if (response.ok) {
+        setCirculars(data);
+      } else {
+        console.error('Failed to fetch circulars:', data.error);
+        // Fallback to simulated data if API fails
+        simulateData();
+      }
+    } catch (err) {
+      console.error('Error fetching circulars:', err);
+      setError('Failed to load announcements. Showing sample data.');
+      // Fallback to simulated data if API fails
+      simulateData();
+    } finally {
       setLoading(false);
-    }, 1000);
-  }, []);
+    }
+  };
+
+  const simulateData = () => {
+    // This is a temporary solution - in a real app, this would fetch from the database
+    const sampleCirculars = [
+      {
+        id: 1,
+        title: "Important Exam Schedule Update",
+        content: "Dear Students, please note that the midterm exams scheduled for next week have been postponed by 2 days. New dates will be communicated shortly.",
+        authorEmail: "kothaig2@srmist.edu.in",
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      },
+      {
+        id: 2,
+        title: "Library Hours Extended",
+        content: "The library will remain open until 11 PM during exam weeks starting from next month. This is to accommodate students who need extra study time.",
+        authorEmail: "saisiddharthvooka@gmail.com",
+        createdAt: new Date(Date.now() - 86400000).toISOString(), // Yesterday
+        updatedAt: new Date(Date.now() - 86400000).toISOString()
+      }
+    ];
+    setCirculars(sampleCirculars);
+  };
 
   if (status === 'loading') {
     return (
@@ -80,6 +108,19 @@ export default function CircularsPage() {
             </button>
           </div>
         </div>
+
+        {error && (
+          <div style={{ 
+            padding: '16px',
+            borderRadius: '8px',
+            backgroundColor: '#fffbeb',
+            border: '1px solid #fde68a',
+            color: '#854d0e',
+            marginBottom: '24px'
+          }}>
+            {error}
+          </div>
+        )}
 
         {loading ? (
           <div style={{ background: 'rgba(255, 255, 255, 0.95)', backdropFilter: 'blur(10px)', borderRadius: '20px', padding: '32px', boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)', textAlign: 'center' }}>

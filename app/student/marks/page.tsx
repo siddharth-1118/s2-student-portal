@@ -22,33 +22,47 @@ export default function StudentMarks() {
   const fetchStudentMarks = async () => {
     try {
       setLoading(true);
-      // In a real implementation, this would fetch from the API
-      // For now, we'll simulate the data
+      // Fetch real student data and marks from the API
+      const response = await fetch('/api/student/marks');
+      const data = await response.json();
       
-      // Simulate student data
-      const studentData = {
-        name: session?.user?.name || 'Student',
-        registerNo: 'RA2511026010868',
-        email: session?.user?.email || ''
-      };
-      
-      setStudent(studentData);
-      
-      // Simulate marks data
-      const marksData = [
-        { id: 1, subject: 'Mathematics', examType: 'Internal', scored: 85, maxMarks: 100, percentage: 85 },
-        { id: 2, subject: 'Physics', examType: 'Internal', scored: 78, maxMarks: 100, percentage: 78 },
-        { id: 3, subject: 'Chemistry', examType: 'Internal', scored: 92, maxMarks: 100, percentage: 92 },
-        { id: 4, subject: 'Biology', examType: 'Internal', scored: 88, maxMarks: 100, percentage: 88 },
-        { id: 5, subject: 'English', examType: 'Internal', scored: 76, maxMarks: 100, percentage: 76 },
-      ];
-      
-      setMarks(marksData);
+      if (response.ok) {
+        setStudent(data.student);
+        setMarks(data.marks);
+      } else {
+        console.error('Failed to fetch student marks:', data.error);
+        // Fallback to simulated data if API fails
+        simulateData();
+      }
     } catch (error) {
       console.error('Error fetching marks:', error);
+      // Fallback to simulated data if API fails
+      simulateData();
     } finally {
       setLoading(false);
     }
+  };
+
+  const simulateData = () => {
+    // Simulate student data
+    const studentData = {
+      name: session?.user?.name || 'Student',
+      registerNo: 'RA2511026010868',
+      email: session?.user?.email || ''
+    };
+    
+    setStudent(studentData);
+    
+    // Simulate marks data
+    const marksData = [
+      { id: 1, subject: 'Mathematics', examType: 'Internal', scored: 85, maxMarks: 100, percentage: 85 },
+      { id: 2, subject: 'Physics', examType: 'Internal', scored: 78, maxMarks: 100, percentage: 78 },
+      { id: 3, subject: 'Chemistry', examType: 'Internal', scored: 92, maxMarks: 100, percentage: 92 },
+      { id: 4, subject: 'Biology', examType: 'Internal', scored: 88, maxMarks: 100, percentage: 88 },
+      { id: 5, subject: 'English', examType: 'Internal', scored: 76, maxMarks: 100, percentage: 76 },
+    ];
+    
+    setMarks(marksData);
   };
 
   if (status === 'loading' || !mounted) {

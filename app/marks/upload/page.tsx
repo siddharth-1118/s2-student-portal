@@ -23,7 +23,7 @@ export default function MarksUploadPage() {
       Papa.parse(f, {
         header: true,
         skipEmptyLines: true,
-        preview: 5, // Preview first 5 rows
+        // Remove the preview limitation to show all rows in preview
         complete: (results) => {
           setPreviewData(results.data as Row[]);
         }
@@ -241,47 +241,49 @@ export default function MarksUploadPage() {
           <div style={{ background: 'rgba(255, 255, 255, 0.95)', backdropFilter: 'blur(10px)', borderRadius: '20px', padding: '32px', boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)' }}>
             <h2 style={{ fontSize: '24px', fontWeight: 'bold', marginBottom: '16px', color: '#111827' }}>📋 CSV Preview</h2>
             <p style={{ fontSize: '14px', color: '#6b7280', marginBottom: '16px' }}>
-              First 5 rows of your uploaded file
+              Showing {previewData.length} rows from your uploaded file
             </p>
             
-            <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                <thead>
-                  <tr style={{ backgroundColor: '#f3f4f6' }}>
-                    {Object.keys(previewData[0]).map((header) => (
-                      <th 
-                        key={header} 
-                        style={{ 
-                          padding: '12px', 
-                          textAlign: 'left', 
-                          borderBottom: '2px solid #e5e7eb',
-                          fontWeight: '600',
-                          color: '#374151'
-                        }}
-                      >
-                        {header}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {previewData.map((row, rowIndex) => (
-                    <tr key={rowIndex} style={{ borderBottom: '1px solid #e5e7eb' }}>
-                      {Object.values(row).map((cell, cellIndex) => (
-                        <td 
-                          key={cellIndex} 
+            <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <thead>
+                    <tr style={{ backgroundColor: '#f3f4f6', position: 'sticky', top: 0 }}>
+                      {Object.keys(previewData[0]).map((header) => (
+                        <th 
+                          key={header} 
                           style={{ 
                             padding: '12px', 
+                            textAlign: 'left', 
+                            borderBottom: '2px solid #e5e7eb',
+                            fontWeight: '600',
                             color: '#374151'
                           }}
                         >
-                          {String(cell)}
-                        </td>
+                          {header}
+                        </th>
                       ))}
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {previewData.map((row, rowIndex) => (
+                      <tr key={rowIndex} style={{ borderBottom: '1px solid #e5e7eb' }}>
+                        {Object.values(row).map((cell, cellIndex) => (
+                          <td 
+                            key={cellIndex} 
+                            style={{ 
+                              padding: '12px', 
+                              color: '#374151'
+                            }}
+                          >
+                            {String(cell)}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
         )}
