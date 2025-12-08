@@ -56,7 +56,8 @@ export default function Home() {
             <>
               <DashboardCard icon="📊" title="Marks Upload" description="Upload and manage student marks with AI" gradient="linear-gradient(135deg, #667eea 0%, #764ba2 100%)" onClick={() => router.push('/marks/upload')} />
               <DashboardCard icon="📈" title="Analytics" description="View class performance and statistics" gradient="linear-gradient(135deg, #f093fb 0%, #f5576c 100%)" onClick={() => router.push('/admin/analytics')} />
-              <DashboardCard icon="📅" title="Timetable" description="Manage and view class schedules with AI" gradient="linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)" onClick={() => router.push('/timetable')} />
+              <DashboardCard icon="📅" title="Timetable" description="Manage and view class schedules" gradient="linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)" onClick={() => router.push('/timetable')} />
+              <DashboardCard icon="📢" title="Circulars" description="Manage announcements for students" gradient="linear-gradient(135deg, #ff9a9e 0%, #fad0c4 100%)" onClick={() => router.push('/admin/circulars')} />
             </>
           ) : (
             <>
@@ -64,6 +65,7 @@ export default function Home() {
               <DashboardCard icon="📈" title="My Analytics" description="View your subject-wise performance" gradient="linear-gradient(135deg, #f093fb 0%, #f5576c 100%)" onClick={() => router.push('/student/analytics')} />
               <DashboardCard icon="📅" title="Timetable" description="Check your class schedule" gradient="linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)" onClick={() => router.push('/timetable')} />
               <DashboardCard icon="🎯" title="SGPA / CGPA" description="Calculate your grades" gradient="linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)" onClick={() => router.push('/calculator')} />
+              <DashboardCard icon="📢" title="Announcements" description="View latest circulars" gradient="linear-gradient(135deg, #ff9a9e 0%, #fad0c4 100%)" onClick={() => router.push('/circulars')} />
             </>
           )}
         </div>
