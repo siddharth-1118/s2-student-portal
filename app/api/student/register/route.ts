@@ -103,9 +103,17 @@ export async function POST(req: NextRequest) {
   // 4. Prepare data for student creation/update
   const studentData: any = {
     registerNo: roll, // Use 'registerNo' here!
-    name: validStudent.name,
-    email
+    name: validStudent.name
+    // Only set email if it's not already set or if we're explicitly setting it
   };
+
+  // Preserve existing email if it exists
+  if (existing?.email) {
+    studentData.email = existing.email;
+  } else if (email) {
+    // Only set email if it's not already set and we're providing one
+    studentData.email = email;
+  }
 
   // Add password if provided (for email/password authentication)
   if (password) {

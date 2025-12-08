@@ -12,6 +12,8 @@ export async function GET() {
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
     }
 
+    console.log("Fetching marks for user:", session.user.email);
+
     // Find the student linked to this email
     const student = await prisma.student.findFirst({
       where: { email: session.user.email },
@@ -19,8 +21,11 @@ export async function GET() {
     });
 
     if (!student) {
+      console.log("No student found for email:", session.user.email);
       return NextResponse.json({ error: "No student record found for this email" }, { status: 404 });
     }
+
+    console.log(`Found student ${student.name} with ${student.marks.length} marks`);
 
     // Calculate percentage for each mark
     const marksWithPercentage = student.marks.map(mark => ({

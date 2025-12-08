@@ -111,7 +111,7 @@ export async function POST(req: Request) {
       const name = nameRaw ? String(nameRaw).trim() : "Unknown";
 
       // First, check if student already exists in database with an email
-      const existingStudentWithEmail = await prisma.student.findUnique({
+      const existingStudent = await prisma.student.findUnique({
         where: { registerNo: reg },
       });
 
@@ -121,14 +121,18 @@ export async function POST(req: Request) {
         name,
       };
 
-      // If student already exists and has an email, preserve it
-      if (existingStudentWithEmail?.email) {
-        studentData.email = existingStudentWithEmail.email;
+      // If student already exists, preserve their email
+      if (existingStudent?.email) {
+        studentData.email = existingStudent.email;
       }
 
       const student = await prisma.student.upsert({
         where: { registerNo: reg },
-        update: { name },
+        update: { 
+          name,
+          // Preserve email if it exists
+          ...(existingStudent?.email && { email: existingStudent.email })
+        },
         create: studentData,
       });
 
