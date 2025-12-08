@@ -1,3 +1,4 @@
+// app/marks/me/page.tsx
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { prisma } from "@/lib/prisma";
@@ -5,61 +6,93 @@ import { prisma } from "@/lib/prisma";
 export default async function MyMarksPage() {
   const session = await getServerSession(authOptions);
 
-  if (!session || (session.user as any).role !== "STUDENT") {
-    return <div style={{ padding: 24 }}>Not authorized</div>;
+  if (!session || !session.user?.email) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <p className="text-slate-600">Please sign in to view your marks.</p>
+      </div>
+    );
   }
 
-  // Find student by email
-  const student = await prisma.student.findUnique({
-    where: { email: session.user?.email || "" },
+  // Find student using email (adjust if you link via registerNo instead)
+  const student = await prisma.student.findFirst({
+    where: { email: session.user.email },
     include: { marks: true },
   });
 
   if (!student) {
     return (
-      <div style={{ padding: 24 }}>
-        <h1>Register First</h1>
-        <p>Please register your roll number first</p>
-        <a href="/register"><button>Register Now</button></a>
+      <div className="min-h-screen flex items-center justify-center">
+        <p className="text-slate-600">
+          No student record linked to this email.
+        </p>
       </div>
     );
   }
 
-  return (
-    <main style={{ padding: 24 }}>
-      <h1>My Marks</h1>
-      <p>Name: {student.name}</p>
-      <p>Roll: {student.registerNo}</p>
-      <a href="/">← Back to Home</a>
+  const marks = student.marks;
 
-      <div style={{ marginTop: 24 }}>
-        {student.marks.length === 0 ? (
-          <p>No marks available yet</p>
-        ) : (
-          <table border={1} cellPadding={8} style={{ width: "100%" }}>
-            <thead>
-              <tr>
-                <th>Subject</th>
-                <th>Exam Type</th>
-                <th>Max Marks</th>
-                <th>Scored</th>
-                <th>Percentage</th>
-              </tr>
-            </thead>
-            <tbody>
-              {student.marks.map(mark => (
-                <tr key={mark.id}>
-                  <td>{mark.subject}</td>
-                  <td>{mark.examType}</td>
-                  <td>{mark.maxMarks}</td>
-                  <td>{mark.scored}</td>
-                  <td>{((mark.scored / mark.maxMarks) * 100).toFixed(2)}%</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
+  return (
+    <div className="min-h-screen bg-slate-50 p-6">
+      <div className="max-w-4xl mx-auto">
+        <h1 className="text-3xl font-bold mb-2">My Marks</h1>
+        <p className="text-slate-600 mb-6">
+          {student.name} • Reg No:{" "}
+          <span className="font-mono">{student.registerNo}</span>
+        </p>
+
+        <div className="rounded-2xl bg-white shadow p-4">
+          {marks.length === 0 ? (
+            <p className="text-slate-500 text-sm">
+              No marks uploaded yet. Please check again later.
+            </p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-sm">
+                <thead>
+                  <tr className="bg-slate-100">
+                    <th className="px-3 py-2 text-left text-xs font-semibold text-slate-600">
+                      Subject
+                    </th>
+                    <th className="px-3 py-2 text-left text-xs font-semibold text-slate-600">
+                      Exam Type
+                    </th>
+                    <th className="px-3 py-2 text-right text-xs font-semibold text-slate-600">
+                      Scored
+                    </th>
+                    <th className="px-3 py-2 text-right text-xs font-semibold text-slate-600">
+                      Max
+                    </th>
+                    <th className="px-3 py-2 text-right text-xs font-semibold text-slate-600">
+                      %
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {marks.map((m) => {
+                    const percent = (m.scored / m.maxMarks) * 100;
+                    return (
+                      <tr key={m.id} className="border-t">
+                        <td className="px-3 py-2">{m.subject}</td>
+                        <td className="px-3 py-2 text-slate-500">
+                          {m.examType}
+                        </td>
+                        <td className="px-3 py-2 text-right font-semibold">
+                          {m.scored}
+                        </td>
+                        <td className="px-3 py-2 text-right">{m.maxMarks}</td>
+                        <td className="px-3 py-2 text-right">
+                          {percent.toFixed(1)}%
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
       </div>
-    </main>
+    </div>
   );
 }
