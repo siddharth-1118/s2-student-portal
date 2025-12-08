@@ -1,9 +1,8 @@
-// app/api/marks/update/route.ts
+// app/marks/upload/route.ts
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { prisma } from "@/lib/prisma";
-import { webpush } from "@/lib/webpush";
 
 const ADMIN_EMAILS = [
   "saisiddharthvooka@gmail.com",
@@ -13,74 +12,104 @@ const ADMIN_EMAILS = [
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
 
-  // ✅ Only admins can update marks
+  // Only admins can upload marks
   if (!session || !session.user?.email || !ADMIN_EMAILS.includes(session.user.email)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const body = await req.json();
-  // markId might come as string from the client; normalize it to number
-  const markId = typeof body.markId === "string" ? Number(body.markId) : body.markId;
-  const scored = typeof body.scored === "string" ? Number(body.scored) : body.scored;
 
-  if (!markId || Number.isNaN(markId)) {
-    return NextResponse.json({ error: "Invalid markId" }, { status: 400 });
+  // Expecting body.rows as array of objects, e.g.
+  // { "register number": "RA2511026010906", "student name": "VOOKA SAI SIDDHARTH", "maths": 20, "physics": 18, ... }
+  const rows = body.rows as Array<Record<string, any>> | undefined;
+
+  if (!rows || rows.length === 0) {
+    return NextResponse.json({ error: "No rows provided" }, { status: 400 });
+  }
+
+  // Take a sample row to detect subject columns
+  const sample = rows[0];
+
+  // Column names for registerNo and student name – adjust if your sheet uses slightly different text
+  const registerKeys = ["register number", "reg no", "registerNo", "register_no"];
+  const nameKeys = ["student name", "name"];
+
+  const registerKey = Object.keys(sample).find((k) =>
+    registerKeys.includes(k.trim().toLowerCase()),
+  );
+  const nameKey = Object.keys(sample).find((k) =>
+    nameKeys.includes(k.trim().toLowerCase()),
+  );
+
+  if (!registerKey) {
+    return NextResponse.json(
+      { error: "Could not detect 'register number' column" },
+      { status: 400 },
+    );
+  }
+
+  // Everything except register/name is treated as a subject column
+  const subjectKeys = Object.keys(sample).filter(
+    (k) => k !== registerKey && k !== nameKey,
+  );
+
+  if (subjectKeys.length === 0) {
+    return NextResponse.json(
+      { error: "No subject columns detected in the sheet" },
+      { status: 400 },
+    );
   }
 
   try {
-    // 1) Update the mark
-    const updated = await prisma.mark.update({
-      where: { id: markId },
-      data: { scored },
-    });
+    let createdCount = 0;
 
-    // 2) Fetch mark with student info
-    const markWithStudent = await prisma.mark.findUnique({
-      where: { id: updated.id },
-      include: {
-        student: { select: { id: true, name: true, registerNo: true } },
-      },
-    });
+    for (const row of rows) {
+      const reg = String(row[registerKey]).trim();
 
-    // 3) Send push notifications (if VAPID keys are configured)
-    if (
-      markWithStudent &&
-      process.env.VAPID_PUBLIC_KEY &&
-      process.env.VAPID_PRIVATE_KEY
-    ) {
-      const subs = await prisma.pushSubscription.findMany({
-        where: { studentId: markWithStudent.student.id },
+      if (!reg) continue;
+
+      const student = await prisma.student.findUnique({
+        where: { registerNo: reg },
       });
 
-      const payload = JSON.stringify({
-        title: "Marks updated",
-        body: `${markWithStudent.student.name}: ${markWithStudent.subject} updated to ${updated.scored}/${updated.maxMarks}`,
-        url: "/marks/me",
-      });
+      if (!student) {
+        console.warn(`No student found for registerNo ${reg}, skipping.`);
+        continue;
+      }
 
-      for (const sub of subs) {
-        webpush
-          .sendNotification(
-            {
-              endpoint: sub.endpoint,
-              keys: {
-                p256dh: sub.p256dh,
-                auth: sub.auth,
-              },
-            } as any,
-            payload,
-          )
-          .catch((err) => {
-            console.error("Push error:", err);
-          });
+      for (const subjectKey of subjectKeys) {
+        const rawScore = row[subjectKey];
+        if (rawScore === undefined || rawScore === null || rawScore === "") continue;
+
+        const scored = Number(rawScore);
+        if (Number.isNaN(scored)) continue;
+
+        const subjectName = subjectKey.toString().trim();
+
+        // Default values – you can customise these or pass from frontend
+        const examType = body.examType || "Internal";
+        const maxMarks =
+          typeof body.maxMarks === "number" ? body.maxMarks : 100;
+
+        await prisma.mark.create({
+          data: {
+            studentId: student.id,
+            subject: subjectName,
+            examType,
+            maxMarks,
+            scored,
+          },
+        });
+
+        createdCount++;
       }
     }
 
-    return NextResponse.json(updated);
+    return NextResponse.json({ ok: true, createdCount });
   } catch (e) {
-    console.error("Mark update error:", e);
+    console.error("Bulk upload marks error:", e);
     return NextResponse.json(
-      { error: "Failed to update mark" },
+      { error: "Failed to upload marks" },
       { status: 500 },
     );
   }
