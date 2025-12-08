@@ -38,6 +38,12 @@ export default function Timetable() {
       alert('⚠️ Please enter a timetable Google Sheets link');
       return;
     }
+    
+    if (!isAdmin) {
+      alert('⚠️ Only admins can analyze timetables');
+      return;
+    }
+    
     alert('AI Timetable feature coming soon! For now, showing sample timetable.');
   };
 

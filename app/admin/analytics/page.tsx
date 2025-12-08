@@ -26,7 +26,11 @@ export default function AdminAnalytics() {
     try {
       const response = await fetch('/api/admin/analytics');
       const data = await response.json();
-      setAnalytics(data);
+      if (response.ok) {
+        setAnalytics(data);
+      } else {
+        console.error('Failed to fetch analytics:', data.error);
+      }
     } catch (error) {
       console.error('Failed to fetch analytics:', error);
     } finally {
@@ -58,28 +62,48 @@ export default function AdminAnalytics() {
 
         {/* Stats Grid */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '24px', marginBottom: '32px' }}>
-          <StatCard title="Total Students" value={analytics?.totalStudents || 73} icon="👥" gradient="linear-gradient(135deg, #667eea 0%, #764ba2 100%)" />
-          <StatCard title="Average Score" value={`${analytics?.averageScore || 85}%`} icon="📊" gradient="linear-gradient(135deg, #f093fb 0%, #f5576c 100%)" />
-          <StatCard title="Pass Rate" value={`${analytics?.passRate || 92}%`} icon="✅" gradient="linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)" />
-          <StatCard title="Top Performer" value={analytics?.topPerformer || "Coming Soon"} icon="🏆" gradient="linear-gradient(135deg, #fa709a 0%, #fee140 100%)" />
+          <StatCard 
+            title="Total Students" 
+            value={analytics?.totalStudents || 0} 
+            icon="👥" 
+            gradient="linear-gradient(135deg, #667eea 0%, #764ba2 100%)" 
+          />
+          <StatCard 
+            title="Average Score" 
+            value={`${analytics?.averageScore || 0}%`} 
+            icon="📊" 
+            gradient="linear-gradient(135deg, #f093fb 0%, #f5576c 100%)" 
+          />
+          <StatCard 
+            title="Pass Rate" 
+            value={`${analytics?.passRate || 0}%`} 
+            icon="✅" 
+            gradient="linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)" 
+          />
+          <StatCard 
+            title="Top Performer" 
+            value={analytics?.topPerformer || "No data"} 
+            icon="🏆" 
+            gradient="linear-gradient(135deg, #fa709a 0%, #fee140 100%)" 
+          />
         </div>
 
-                {/* Charts Section */}
-                <div style={{ background: 'rgba(255, 255, 255, 0.95)', backdropFilter: 'blur(10px)', borderRadius: '20px', padding: '32px', boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)' }}>
-                  <h2 style={{ fontSize: '24px', fontWeight: 'bold', marginBottom: '24px', color: '#111827' }}>📉 Performance Distribution</h2>
-                  <p style={{ color: '#6b7280', fontSize: '14px' }}>Marks distribution</p>
-                </div>
-              </div>
-            </div>
-          );
-        }
-        
-        function StatCard({ title, value, icon, gradient }: { title: string; value: string | number; icon: string; gradient: string }) {
-          return (
-            <div style={{ background: 'rgba(255, 255, 255, 0.95)', backdropFilter: 'blur(10px)', borderRadius: '16px', padding: '24px', boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)', border: '1px solid rgba(255, 255, 255, 0.2)' }}>
-              <div style={{ fontSize: '32px', marginBottom: '12px' }}>{icon}</div>
-              <p style={{ fontSize: '14px', color: '#6b7280', marginBottom: '8px' }}>{title}</p>
-              <p style={{ fontSize: '28px', fontWeight: 'bold', background: gradient, WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>{value}</p>
-            </div>
-          );
-        }
+        {/* Charts Section */}
+        <div style={{ background: 'rgba(255, 255, 255, 0.95)', backdropFilter: 'blur(10px)', borderRadius: '20px', padding: '32px', boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)' }}>
+          <h2 style={{ fontSize: '24px', fontWeight: 'bold', marginBottom: '24px', color: '#111827' }}>📉 Performance Distribution</h2>
+          <p style={{ color: '#6b7280', fontSize: '14px' }}>Marks distribution visualization will appear here in a future update.</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function StatCard({ title, value, icon, gradient }: { title: string; value: string | number; icon: string; gradient: string }) {
+  return (
+    <div style={{ background: 'rgba(255, 255, 255, 0.95)', backdropFilter: 'blur(10px)', borderRadius: '16px', padding: '24px', boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)', border: '1px solid rgba(255, 255, 255, 0.2)' }}>
+      <div style={{ fontSize: '32px', marginBottom: '12px' }}>{icon}</div>
+      <p style={{ fontSize: '14px', color: '#6b7280', marginBottom: '8px' }}>{title}</p>
+      <p style={{ fontSize: '28px', fontWeight: 'bold', background: gradient, WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>{value}</p>
+    </div>
+  );
+}
