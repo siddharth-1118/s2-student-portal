@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { prisma } from "@/lib/prisma";
 
 export async function GET() {
   try {
@@ -10,12 +11,17 @@ export async function GET() {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
     }
 
-    // Return timetable (all users can view)
-    return NextResponse.json({ 
-      timetable: null, // Will be populated from database
-      message: 'Timetable retrieved successfully'
+    // Fetch timetable entries from database
+    const timetableEntries = await prisma.timetableEntry.findMany({
+      orderBy: [
+        { day: 'asc' },
+        { period: 'asc' }
+      ]
     });
+
+    return NextResponse.json(timetableEntries);
   } catch (error: any) {
+    console.error("Timetable fetch error:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
