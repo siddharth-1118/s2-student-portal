@@ -5,7 +5,7 @@ import { authOptions } from "@/lib/auth";
 
 export async function PATCH(
   request: Request,
-  // FIX 1: Type the context correctly for newer Next.js versions (params is a Promise)
+  // FIX: Properly type 'params' as a Promise for Next.js 15+
   context: { params: Promise<{ id: string }> }
 ) {
   try {
@@ -14,20 +14,21 @@ export async function PATCH(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // FIX 2: You MUST await 'context.params' before using the ID
+    // FIX: Await parameters before using them
     const { id } = await context.params;
-    const studentId = id; // It is already a string, so no need for parseInt
+    const studentId = id;
 
     const body = await request.json();
     const { locked } = body;
 
-    // Note: If you don't have 'profileLocked' in your database schema yet,
-    // this update might fail silently or throw an error.
-    // Ensure you added that column if you intend to use it.
+    // FIX: Since 'profileLocked' column doesn't exist yet, we update 'updatedAt'
+    // to prevent the build from crashing.
+    // Once you add 'profileLocked' to your schema.prisma, uncomment the real line below.
     const updatedStudent = await prisma.student.update({
       where: { id: studentId },
       data: {
-        // profileLocked: locked // Uncomment this only if you added the column to schema.prisma
+        // profileLocked: locked, // <-- Uncomment this ONLY after adding the column to Prisma
+        updatedAt: new Date()     // Placeholder update so the API doesn't crash
       },
     });
 
