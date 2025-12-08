@@ -28,9 +28,6 @@ export const authOptions: NextAuthOptions = {
       if (ADMIN_EMAILS.includes(email)) return true;
 
       // 2) For Google logins, require SRMIST email domain
-      if (account?.provider === "google" && !email.endsWith("@srmist.edu.in")) {
-        return true;
-      }
 
       // 3) Allow only if this email exists in Student table
       const student = await prisma.student.findFirst({
