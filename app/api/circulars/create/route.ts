@@ -28,16 +28,20 @@ export async function POST(req: Request) {
       );
     }
 
-    // Create circular
-    const circular = await prisma.circular.create({
-      data: {
-        title,
-        content,
-        authorEmail: session.user.email,
-      },
+    // TEMPORARY FIX: Create circular using raw SQL since the Prisma client may not have the model typed yet
+    // This is a workaround until we can regenerate the Prisma client properly
+    const result: any = await prisma.$queryRaw`INSERT INTO "Circular" ("title", "content", "authorEmail") VALUES (${title}, ${content}, ${session.user.email}) RETURNING *`;
+    
+    const circular = (result as any[])[0];
+    
+    return NextResponse.json({
+      id: circular.id,
+      title: circular.title,
+      content: circular.content,
+      authorEmail: circular.authorEmail,
+      createdAt: circular.createdAt.toISOString(),
+      updatedAt: circular.updatedAt.toISOString()
     });
-
-    return NextResponse.json(circular);
   } catch (e) {
     console.error("Circular create error:", e);
     return NextResponse.json(
