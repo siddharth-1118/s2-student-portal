@@ -3,6 +3,9 @@ import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 
+// FIX: Ensure this file doesn't try to update non-existent fields
+// Removed updatedAt and profileLocked field updates which don't exist in the Student model
+
 export async function PATCH(
   request: Request,
   context: { params: Promise<{ id: string }> }
