@@ -1,304 +1,262 @@
 'use client';
 
-import React, { useState } from "react";
-import Papa from "papaparse";
-import { NotificationSetup } from "@/app/marks/NotificationSetup";
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 
-type Row = Record<string, any>;
+interface Student {
+  id: number;
+  registerNo: string;
+  name: string;
+}
+
+interface StudentMark {
+  registerNo: string;
+  name: string;
+  maxMarks: number;
+  scoredMarks: number;
+}
 
 export default function MarksUploadPage() {
-  const [file, setFile] = useState<File | null>(null);
-  const [examType, setExamType] = useState("Internal");
-  const [maxMarks, setMaxMarks] = useState(100);
-  const [status, setStatus] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [previewData, setPreviewData] = useState<Row[]>([]);
+  const router = useRouter();
+  const [students, setStudents] = useState<Student[]>([]);
+  const [subject, setSubject] = useState('');
+  const [examType, setExamType] = useState('Internal');
+  const [defaultMaxMarks, setDefaultMaxMarks] = useState(100);
+  const [marks, setMarks] = useState<StudentMark[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState('');
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const f = e.target.files?.[0] || null;
-    setFile(f);
-    setStatus(null);
-    
-    // Preview the CSV data
-    if (f) {
-      Papa.parse(f, {
-        header: true,
-        skipEmptyLines: true,
-        // Remove the preview limitation to show all rows in preview
-        complete: (results) => {
-          setPreviewData(results.data as Row[]);
-        }
-      });
-    } else {
-      setPreviewData([]);
-    }
-  };
+  // Fetch all students on mount
+  useEffect(() => {
+    fetchStudents();
+  }, []);
 
-  const parseCsvFile = (file: File): Promise<Row[]> => {
-    return new Promise((resolve, reject) => {
-      Papa.parse(file, {
-        header: true,
-        skipEmptyLines: true,
-        complete: (results) => {
-          if (results.errors && results.errors.length > 0) {
-            reject(results.errors[0]);
-          } else {
-            resolve(results.data as Row[]);
-          }
-        },
-        error: (err) => reject(err),
-      });
-    });
-  };
-
-  const handleUpload = async () => {
-    if (!file) {
-      setStatus("Please select a CSV file first.");
-      return;
-    }
-
-    setLoading(true);
-    setStatus(null);
-
+  const fetchStudents = async () => {
     try {
-      const rows = await parseCsvFile(file);
-
-      const body = {
-        rows, // will be picked by your API route
-        examType,
-        maxMarks,
-      };
-
-      const res = await fetch("/api/marks/upload", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(body),
-      });
-
+      const res = await fetch('/api/students');
+      if (!res.ok) throw new Error('Failed to fetch students');
       const data = await res.json();
-
-      if (!res.ok) {
-        setStatus(
-          data?.error ||
-            `Upload failed with status ${res.status}`,
-        );
-        return;
-      }
-
-      setStatus(
-        `✅ Upload successful! Created: ${data.createdCount}, Updated: ${data.updatedCount}. Problems: ${data.problems?.length || 0}`,
-      );
+      setStudents(data.students || []);
       
-      // Clear the form after successful upload
-      setFile(null);
-      setPreviewData([]);
-    } catch (err: any) {
-      console.error(err);
-      setStatus("❌ Unexpected error while uploading. Check console/logs.");
+      // Initialize marks array
+      const initialMarks = (data.students || []).map((s: Student) => ({
+        registerNo: s.registerNo,
+        name: s.name,
+        maxMarks: defaultMaxMarks,
+        scoredMarks: 0
+      }));
+      setMarks(initialMarks);
+    } catch (error) {
+      console.error('Error fetching students:', error);
+      setMessage('Error loading students');
     } finally {
       setLoading(false);
     }
   };
 
+  const updateMark = (registerNo: string, field: 'maxMarks' | 'scoredMarks', value: number) => {
+    setMarks(prev => prev.map(m => 
+      m.registerNo === registerNo ? { ...m, [field]: value } : m
+    ));
+  };
+
+  const updateAllMaxMarks = (value: number) => {
+    setDefaultMaxMarks(value);
+    setMarks(prev => prev.map(m => ({ ...m, maxMarks: value })));
+  };
+
+  const handleSaveAllMarks = async () => {
+    if (!subject.trim()) {
+      setMessage('❌ Please enter subject name');
+      return;
+    }
+
+    // Filter students who have marks entered (scored > 0)
+    const studentsWithMarks = marks.filter(m => m.scoredMarks > 0);
+    
+    if (studentsWithMarks.length === 0) {
+      setMessage('❌ Please enter marks for at least one student');
+      return;
+    }
+
+    setSaving(true);
+    setMessage('');
+
+    try {
+      // Format data as expected by API: array of objects with Register Number and subject columns
+      const rows = studentsWithMarks.map(m => ({
+        'Register Number': m.registerNo,
+        'Student Name': m.name,
+        [subject]: m.scoredMarks
+      }));
+
+      const response = await fetch('/api/marks/upload', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          rows,
+          examType,
+          maxMarks: defaultMaxMarks
+        })
+      });
+
+      const result = await response.json();
+
+      if (response.ok) {
+        setMessage(`✅ Successfully uploaded marks for ${studentsWithMarks.length} students!`);
+        // Reset marks to 0
+        setMarks(prev => prev.map(m => ({ ...m, scoredMarks: 0 })));
+        setSubject('');
+        
+        // Redirect to marks terminal after 2 seconds
+        setTimeout(() => {
+          router.push('/admin/marks');
+        }, 2000);
+      } else {
+        setMessage(`❌ Error: ${result.error || 'Failed to upload marks'}`);
+      }
+    } catch (error) {
+      console.error('Error uploading marks:', error);
+      setMessage('❌ Failed to upload marks. Please try again.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div>Loading students...</div>
+      </div>
+    );
+  }
+
   return (
-    <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', padding: '40px 20px' }}>
-      <div style={{ maxWidth: '800px', margin: '0 auto' }}>
-        <div style={{ background: 'rgba(255, 255, 255, 0.95)', backdropFilter: 'blur(10px)', borderRadius: '20px', padding: '32px', marginBottom: '32px', boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '20px', marginBottom: '24px' }}>
-            <div>
-              <h1 style={{ fontSize: '32px', fontWeight: 'bold', marginBottom: '8px', background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-                📤 Upload Marks
-              </h1>
-              <p style={{ fontSize: '14px', color: '#6b7280' }}>
-                Upload student marks via CSV file
-              </p>
-            </div>
+    <div style={{ padding: '20px', maxWidth: '1200px', margin: '0 auto' }}>
+      <div style={{ background: 'white', borderRadius: '12px', padding: '24px', marginBottom: '20px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
+        <h1 style={{ fontSize: '28px', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          📝 Enter Marks
+        </h1>
+        <p style={{ color: '#666', marginBottom: '24px' }}>Manual entry for all students</p>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px', marginBottom: '24px' }}>
+          <div>
+            <label style={{ display: 'block', fontWeight: '600', marginBottom: '8px', color: '#374151' }}>
+              Subject Name
+            </label>
+            <input
+              type="text"
+              value={subject}
+              onChange={(e) => setSubject(e.target.value)}
+              placeholder="e.g. Mathematics"
+              style={{ width: '100%', padding: '10px', border: '2px solid #e5e7eb', borderRadius: '8px', fontSize: '14px' }}
+            />
           </div>
           
-          {/* Notification Setup for Admins */}
-          <NotificationSetup />
-
-          <div style={{ marginBottom: '24px' }}>
-            <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', color: '#374151' }}>
-              📄 CSV file (with headers)
+          <div>
+            <label style={{ display: 'block', fontWeight: '600', marginBottom: '8px', color: '#374151' }}>
+              Exam Type
             </label>
-            <div style={{ 
-              border: '2px dashed #d1d5db', 
-              borderRadius: '8px', 
-              padding: '24px', 
-              textAlign: 'center', 
-              backgroundColor: '#f9fafb',
-              transition: 'all 0.3s'
-            }}
-            onMouseEnter={(e) => e.currentTarget.style.borderColor = '#667eea'}
-            onMouseLeave={(e) => e.currentTarget.style.borderColor = '#d1d5db'}>
-              <input 
-                type="file" 
-                accept=".csv" 
-                onChange={handleFileChange} 
-                style={{ display: 'none' }} 
-                id="file-upload"
-              />
-              <label htmlFor="file-upload" style={{ cursor: 'pointer' }}>
-                <div style={{ fontSize: '48px', marginBottom: '12px' }}>📁</div>
-                <p style={{ marginBottom: '8px', color: '#374151' }}>
-                  {file ? file.name : 'Click to select a CSV file'}
-                </p>
-                <p style={{ fontSize: '12px', color: '#6b7280' }}>
-                  CSV should contain Register Number and subject columns
-                </p>
-              </label>
-            </div>
+            <select
+              value={examType}
+              onChange={(e) => setExamType(e.target.value)}
+              style={{ width: '100%', padding: '10px', border: '2px solid #e5e7eb', borderRadius: '8px', fontSize: '14px' }}
+            >
+              <option value="Internal">Internal</option>
+              <option value="CAT1">CAT 1</option>
+              <option value="CAT2">CAT 2</option>
+              <option value="Semester">Semester</option>
+              <option value="Assignment">Assignment</option>
+            </select>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '24px' }}>
-            <div>
-              <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', color: '#374151' }}>
-                🏷️ Exam type
-              </label>
-              <input
-                type="text"
-                value={examType}
-                onChange={(e) => setExamType(e.target.value)}
-                style={{ 
-                  width: '100%', 
-                  padding: '12px 16px', 
-                  border: '2px solid #e5e7eb', 
-                  borderRadius: '8px', 
-                  fontSize: '14px',
-                  outline: 'none'
-                }}
-                onFocus={(e) => e.target.style.borderColor = '#667eea'}
-                onBlur={(e) => e.target.style.borderColor = '#e5e7eb'}
-              />
-            </div>
-
-            <div>
-              <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', color: '#374151' }}>
-                🎯 Max marks
-              </label>
-              <input
-                type="number"
-                value={maxMarks}
-                onChange={(e) => setMaxMarks(Number(e.target.value))}
-                style={{ 
-                  width: '100%', 
-                  padding: '12px 16px', 
-                  border: '2px solid #e5e7eb', 
-                  borderRadius: '8px', 
-                  fontSize: '14px',
-                  outline: 'none'
-                }}
-                onFocus={(e) => e.target.style.borderColor = '#667eea'}
-                onBlur={(e) => e.target.style.borderColor = '#e5e7eb'}
-              />
-            </div>
+          <div>
+            <label style={{ display: 'block', fontWeight: '600', marginBottom: '8px', color: '#374151' }}>
+              Default Max Marks
+            </label>
+            <input
+              type="number"
+              value={defaultMaxMarks}
+              onChange={(e) => updateAllMaxMarks(Number(e.target.value))}
+              style={{ width: '100%', padding: '10px', border: '2px solid #e5e7eb', borderRadius: '8px', fontSize: '14px' }}
+            />
+            <p style={{ fontSize: '12px', color: '#666', marginTop: '4px' }}>Applies to all unless changed below</p>
           </div>
-
-          <button
-            onClick={handleUpload}
-            disabled={loading}
-            style={{ 
-              width: '100%',
-              padding: '14px', 
-              background: loading ? '#9ca3af' : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', 
-              color: 'white', 
-              border: 'none', 
-              borderRadius: '12px', 
-              fontSize: '16px', 
-              fontWeight: '600', 
-              cursor: loading ? 'not-allowed' : 'pointer',
-              boxShadow: '0 4px 12px rgba(102, 126, 234, 0.4)',
-              transition: 'all 0.3s'
-            }}
-            onMouseEnter={(e) => !loading && (e.currentTarget.style.transform = 'translateY(-2px)')}
-            onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
-          >
-            {loading ? (
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
-                <div style={{ width: '20px', height: '20px', border: '2px solid rgba(255,255,255,0.3)', borderTop: '2px solid white', borderRadius: '50%', animation: 'spin 1s linear infinite' }}></div>
-                Uploading...
-              </div>
-            ) : (
-              '📤 Upload Marks'
-            )}
-          </button>
-
-          {status && (
-            <div style={{ 
-              marginTop: '20px',
-              padding: '16px',
-              borderRadius: '8px',
-              backgroundColor: status.includes('✅') ? '#dcfce7' : status.includes('❌') ? '#fee2e2' : '#fffbeb',
-              border: `1px solid ${status.includes('✅') ? '#bbf7d0' : status.includes('❌') ? '#fecaca' : '#fde68a'}`,
-              color: status.includes('✅') ? '#166534' : status.includes('❌') ? '#991b1b' : '#854d0e'
-            }}>
-              {status}
-            </div>
-          )}
         </div>
 
-        {/* Preview Section */}
-        {previewData.length > 0 && (
-          <div style={{ background: 'rgba(255, 255, 255, 0.95)', backdropFilter: 'blur(10px)', borderRadius: '20px', padding: '32px', boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)' }}>
-            <h2 style={{ fontSize: '24px', fontWeight: 'bold', marginBottom: '16px', color: '#111827' }}>📋 CSV Preview</h2>
-            <p style={{ fontSize: '14px', color: '#6b7280', marginBottom: '16px' }}>
-              Showing {previewData.length} rows from your uploaded file
-            </p>
-            
-            <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
-              <div style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                  <thead>
-                    <tr style={{ backgroundColor: '#f3f4f6', position: 'sticky', top: 0 }}>
-                      {Object.keys(previewData[0]).map((header) => (
-                        <th 
-                          key={header} 
-                          style={{ 
-                            padding: '12px', 
-                            textAlign: 'left', 
-                            borderBottom: '2px solid #e5e7eb',
-                            fontWeight: '600',
-                            color: '#374151'
-                          }}
-                        >
-                          {header}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {previewData.map((row, rowIndex) => (
-                      <tr key={rowIndex} style={{ borderBottom: '1px solid #e5e7eb' }}>
-                        {Object.values(row).map((cell, cellIndex) => (
-                          <td 
-                            key={cellIndex} 
-                            style={{ 
-                              padding: '12px', 
-                              color: '#374151'
-                            }}
-                          >
-                            {String(cell)}
-                          </td>
-                        ))}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
+        {message && (
+          <div style={{
+            padding: '12px',
+            marginBottom: '16px',
+            borderRadius: '8px',
+            backgroundColor: message.includes('✅') ? '#d1fae5' : '#fee2e2',
+            color: message.includes('✅') ? '#065f46' : '#991b1b',
+            border: `1px solid ${message.includes('✅') ? '#6ee7b7' : '#fca5a5'}`
+          }}>
+            {message}
           </div>
         )}
+
+        <div style={{ marginBottom: '16px', overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #e5e7eb' }}>
+            <thead>
+              <tr style={{ backgroundColor: '#6366f1', color: 'white' }}>
+                <th style={{ padding: '12px', textAlign: 'left', borderRight: '1px solid #e5e7eb' }}>Register No</th>
+                <th style={{ padding: '12px', textAlign: 'left', borderRight: '1px solid #e5e7eb' }}>Student Name</th>
+                <th style={{ padding: '12px', textAlign: 'center', borderRight: '1px solid #e5e7eb', width: '150px' }}>Max Marks</th>
+                <th style={{ padding: '12px', textAlign: 'center', width: '150px' }}>Scored Marks</th>
+              </tr>
+            </thead>
+            <tbody>
+              {marks.map((mark, index) => (
+                <tr key={mark.registerNo} style={{ borderBottom: '1px solid #e5e7eb', backgroundColor: index % 2 === 0 ? '#f9fafb' : 'white' }}>
+                  <td style={{ padding: '12px', borderRight: '1px solid #e5e7eb', fontWeight: '500' }}>{mark.registerNo}</td>
+                  <td style={{ padding: '12px', borderRight: '1px solid #e5e7eb' }}>{mark.name}</td>
+                  <td style={{ padding: '8px', borderRight: '1px solid #e5e7eb' }}>
+                    <input
+                      type="number"
+                      value={mark.maxMarks}
+                      onChange={(e) => updateMark(mark.registerNo, 'maxMarks', Number(e.target.value))}
+                      style={{ width: '100%', padding: '8px', border: '1px solid #d1d5db', borderRadius: '4px', textAlign: 'center' }}
+                    />
+                  </td>
+                  <td style={{ padding: '8px' }}>
+                    <input
+                      type="number"
+                      value={mark.scoredMarks}
+                      onChange={(e) => updateMark(mark.registerNo, 'scoredMarks', Number(e.target.value))}
+                      style={{ width: '100%', padding: '8px', border: '1px solid #d1d5db', borderRadius: '4px', textAlign: 'center' }}
+                    />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        <button
+          onClick={handleSaveAllMarks}
+          disabled={saving}
+          style={{
+            width: '100%',
+            padding: '14px',
+            background: saving ? '#9ca3af' : '#6366f1',
+            color: 'white',
+            border: 'none',
+            borderRadius: '8px',
+            fontSize: '16px',
+            fontWeight: '600',
+            cursor: saving ? 'not-allowed' : 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '8px'
+          }}
+        >
+          {saving ? '⏳ Saving...' : '🚀 Save All Marks'}
+        </button>
       </div>
-      
-      <style jsx>{`
-        @keyframes spin {
-          0% { transform: rotate(0deg); }
-          100% { transform: rotate(360deg); }
-        }
-      `}</style>
     </div>
   );
 }
