@@ -22,6 +22,7 @@ model Student {
   year       String?
   section    String?
   profileCompleted Boolean @default(false)
+  profileLocked Boolean @default(false)
 
   // Relations
   marks             Mark[]
